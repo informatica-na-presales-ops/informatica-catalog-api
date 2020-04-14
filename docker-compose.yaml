@@ -1,0 +1,6 @@
+version: '3.7'
+
+services:
+  catalog-api:
+    image: docker.pkg.github.com/informatica-na-presales-ops/informatica-catalog-api/informatica-catalog-api
+    build: .
