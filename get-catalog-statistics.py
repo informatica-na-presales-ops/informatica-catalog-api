@@ -63,6 +63,7 @@ class Settings:
 
 def get_raw_data(settings: Settings) -> lxml.etree.Element:
     url = f'{settings.catalog_hostname}/access/1/catalog/eicstats'
+    log.info(f'Requesting {url}')
     r = requests.get(url, auth=settings.basic_auth)
     return lxml.etree.fromstring(r.text)
 
@@ -87,6 +88,7 @@ def set_up_logging(settings: Settings):
 def main_job(settings):
     data = get_raw_data(settings)
     login_timestamps_file = settings.output_folder / f'{settings.output_file_prefix}catalog-login-timestamps.csv'
+    log.info(f'Writing data to {login_timestamps_file}')
     with login_timestamps_file.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=['user_id', 'login_timestamp'])
         writer.writeheader()
