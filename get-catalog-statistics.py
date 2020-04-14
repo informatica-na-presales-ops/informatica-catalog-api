@@ -1,3 +1,4 @@
+import apscheduler.schedulers.blocking
 import csv
 import datetime
 import logging
@@ -48,6 +49,10 @@ class Settings:
         return os.getenv('RUN_AND_EXIT', 'False').lower() in self._true_values
 
     @property
+    def sync_interval_hours(self) -> int:
+        return int(os.getenv('SYNC_INTERVAL_HOURS', '12'))
+
+    @property
     def username(self) -> str:
         return os.getenv('USERNAME')
 
@@ -79,10 +84,7 @@ def set_up_logging(settings: Settings):
     logging.getLogger().setLevel(settings.log_level)
 
 
-def main():
-    settings = Settings()
-    set_up_logging(settings)
-
+def main_job(settings):
     data = get_raw_data(settings)
     login_timestamps_file = settings.output_folder / f'{settings.output_file_prefix}catalog-login-timestamps.csv'
     with login_timestamps_file.open('w', newline='') as f:
@@ -90,6 +92,17 @@ def main():
         writer.writeheader()
         for t in yield_login_stats(data):
             writer.writerow(t)
+
+
+def main():
+    settings = Settings()
+    set_up_logging(settings)
+
+    log.info(f'RUN_AND_EXIT: {settings.run_and_exit}')
+    main_job(settings)
+    if not settings.run_and_exit:
+        scheduler = apscheduler.schedulers.blocking.BlockingScheduler()
+        scheduler.add_job(main_job, 'interval', hours=settings.sync_interval_hours, args=[settings])
 
 
 def handle_sigterm(_signal, _frame):
