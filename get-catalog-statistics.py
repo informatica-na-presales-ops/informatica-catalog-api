@@ -103,6 +103,7 @@ def main():
     if not settings.run_and_exit:
         scheduler = apscheduler.schedulers.blocking.BlockingScheduler()
         scheduler.add_job(main_job, 'interval', hours=settings.sync_interval_hours, args=[settings])
+        scheduler.start()
 
 
 def handle_sigterm(_signal, _frame):
