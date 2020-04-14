@@ -6,12 +6,15 @@ import os
 import pathlib
 import requests
 import requests.auth
+import signal
 import sys
 
 log = logging.getLogger(__name__)
 
 
 class Settings:
+    _true_values = ('true', '1', 'on', 'yes')
+
     @property
     def basic_auth(self) -> requests.auth.HTTPBasicAuth:
         return requests.auth.HTTPBasicAuth(self.username, self.password)
@@ -41,6 +44,10 @@ class Settings:
         return os.getenv('PASSWORD')
 
     @property
+    def run_and_exit(self) -> bool:
+        return os.getenv('RUN_AND_EXIT', 'False').lower() in self._true_values
+
+    @property
     def username(self) -> str:
         return os.getenv('USERNAME')
 
@@ -64,13 +71,17 @@ def yield_login_stats(xml: lxml.etree.Element):
                 yield {'user_id': user_id, 'login_timestamp': login_timestamp}
 
 
-def main():
-    settings = Settings()
+def set_up_logging(settings: Settings):
     logging.basicConfig(format=settings.log_format, level='DEBUG', stream=sys.stdout)
     log.debug(f'get-catalog-statistics {settings.version}')
     if not settings.log_level == 'DEBUG':
         log.debug(f'Changing log level to {settings.log_level}')
     logging.getLogger().setLevel(settings.log_level)
+
+
+def main():
+    settings = Settings()
+    set_up_logging(settings)
 
     data = get_raw_data(settings)
     login_timestamps_file = settings.output_folder / f'{settings.output_file_prefix}catalog-login-timestamps.csv'
@@ -81,5 +92,10 @@ def main():
             writer.writerow(t)
 
 
+def handle_sigterm(_signal, _frame):
+    sys.exit()
+
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGTERM, handle_sigterm)
     main()
