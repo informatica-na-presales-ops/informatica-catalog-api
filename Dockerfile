@@ -7,7 +7,7 @@ RUN /sbin/apk add --no-cache --virtual .deps gcc libxml2-dev libxslt-dev musl-de
  && /usr/local/bin/pip install --no-cache-dir --requirement /informatica-catalog-api/requirements.txt \
  && /sbin/apk del --no-cache .deps
 
-ENV VERSION="2020.0" \
+ENV VERSION="2020.1" \
     PYTHONUNBUFFERED="1" \
     TZ="Etc/UTC"
 
