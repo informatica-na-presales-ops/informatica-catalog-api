@@ -1,16 +1,49 @@
 import apscheduler.schedulers.blocking
-import csv
 import datetime
+import fort
 import logging
 import lxml.etree
 import os
-import pathlib
 import requests
 import requests.auth
 import signal
 import sys
 
 log = logging.getLogger(__name__)
+
+
+class Database(fort.PostgresDatabase):
+    def __init__(self, settings, dsn):
+        super().__init__(dsn)
+        self.settings = settings
+
+    def add_user_login_timestamp(self, user_id: str, login_timestamp: datetime.datetime):
+        sql = '''
+            select event_id from environment_usage_events
+            where environment_name = %(environment_name)s
+              and event_name = %(event_name)s
+              and user_id = %(user_id)s
+              and event_time = %(event_time)s
+        '''
+        params = {
+            'environment_name': self.settings.environment_name,
+            'event_name': 'login',
+            'user_id': user_id,
+            'event_time': login_timestamp
+        }
+        existing = self.q_val(sql, params)
+        if existing is None:
+            self.log.info(f'Adding event to database: {user_id} at {login_timestamp}')
+            sql = '''
+                insert into environment_usage_events (
+                    environment_name, event_name, user_id, event_time
+                ) values (
+                    %(environment_name)s, %(event_name)s, %(user_id)s, %(event_time)s
+                )
+            '''
+            self.u(sql, params)
+        else:
+            self.log.info(f'This event is already in the database: {user_id} at {login_timestamp}')
 
 
 class Settings:
@@ -25,20 +58,20 @@ class Settings:
         return os.getenv('CATALOG_HOST', 'http://example.com:9085')
 
     @property
+    def db(self) -> Database:
+        return Database(self, os.getenv('DB'))
+
+    @property
+    def environment_name(self) -> str:
+        return os.getenv('ENVIRONMENT_NAME')
+
+    @property
     def log_format(self) -> str:
         return os.getenv('LOG_FORMAT', '%(levelname)s [%(name)s] %(message)s')
 
     @property
     def log_level(self) -> str:
         return os.getenv('LOG_LEVEL', 'INFO')
-
-    @property
-    def output_file_prefix(self) -> str:
-        return os.getenv('OUTPUT_FILE_PREFIX', '')
-
-    @property
-    def output_folder(self) -> pathlib.Path:
-        return pathlib.Path(os.getenv('OUTPUT_FOLDER', '/data')).resolve()
 
     @property
     def password(self) -> str:
@@ -86,14 +119,10 @@ def set_up_logging(settings: Settings):
 
 
 def main_job(settings):
+    db = settings.db
     data = get_raw_data(settings)
-    login_timestamps_file = settings.output_folder / f'{settings.output_file_prefix}catalog-login-timestamps.csv'
-    log.info(f'Writing data to {login_timestamps_file}')
-    with login_timestamps_file.open('w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=['user_id', 'login_timestamp'])
-        writer.writeheader()
-        for t in yield_login_stats(data):
-            writer.writerow(t)
+    for t in yield_login_stats(data):
+        db.add_user_login_timestamp(**t)
 
 
 def main():
