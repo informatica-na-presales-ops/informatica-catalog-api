@@ -20,15 +20,15 @@ class Database(fort.PostgresDatabase):
     def add_user_login_timestamp(self, user_id: str, login_timestamp: datetime.datetime):
         sql = '''
             select event_id from environment_usage_events
-            where environment_name = %(environment_name)s
-              and event_name = %(event_name)s
-              and user_id = %(user_id)s
+            where lower(environment_name) = lower(%(environment_name)s)
+              and lower(event_name) = lower(%(event_name)s)
+              and lower(user_id) = lower(%(user_id)s)
               and event_time = %(event_time)s
         '''
         params = {
-            'environment_name': self.settings.environment_name,
+            'environment_name': self.settings.environment_name.lower(),
             'event_name': 'login',
-            'user_id': user_id,
+            'user_id': user_id.lower(),
             'event_time': login_timestamp
         }
         existing = self.q_val(sql, params)
@@ -38,12 +38,12 @@ class Database(fort.PostgresDatabase):
                 insert into environment_usage_events (
                     environment_name, event_name, user_id, event_time
                 ) values (
-                    %(environment_name)s, %(event_name)s, %(user_id)s, %(event_time)s
+                    lower(%(environment_name)s), lower(%(event_name)s), lower(%(user_id)s), %(event_time)s
                 )
             '''
             self.u(sql, params)
         else:
-            self.log.info(f'This event is already in the database: {user_id} at {login_timestamp}')
+            self.log.info(f'This event is already in the database: {user_id.lower()} at {login_timestamp}')
 
 
 class Settings:
@@ -104,7 +104,7 @@ def get_raw_data(settings: Settings) -> lxml.etree.Element:
 def yield_login_stats(xml: lxml.etree.Element):
     for day in xml.find('UsageStats/UserActivity/loginActivity/edcLoginStats'):
         for user_login_timestamp in day.findall('userLoginTimestamps'):
-            user_id = user_login_timestamp.find('userId').text
+            user_id = user_login_timestamp.find('userId').text.lower()
             for timestamp in user_login_timestamp.findall('loginTimestamp'):
                 login_timestamp = datetime.datetime.strptime(timestamp.text, '%a %b %d %H:%M:%S %Z %Y')
                 yield {'user_id': user_id, 'login_timestamp': login_timestamp}
