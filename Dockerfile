@@ -1,4 +1,4 @@
-FROM python:3.8.6-alpine3.11
+FROM python:3.8.6-alpine3.12
 
 COPY requirements.txt /informatica-catalog-api/requirements.txt
 
