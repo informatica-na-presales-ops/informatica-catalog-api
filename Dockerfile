@@ -5,7 +5,7 @@ COPY requirements.txt /informatica-catalog-api/requirements.txt
 RUN /sbin/apk add --no-cache libpq libxslt
 RUN /usr/local/bin/pip install --no-cache-dir --requirement /informatica-catalog-api/requirements.txt
 
-ENV VERSION="2020.4" \
+ENV VERSION="2020.5" \
     PYTHONUNBUFFERED="1" \
     TZ="Etc/UTC"
 
