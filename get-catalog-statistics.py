@@ -105,6 +105,8 @@ def yield_login_stats(xml: lxml.etree.Element):
     for day in xml.find('UsageStats/UserActivity/loginActivity/edcLoginStats'):
         for user_login_timestamp in day.findall('userLoginTimestamps'):
             user_id = user_login_timestamp.find('userId').text.lower()
+            if '@' in user_id:
+                user_id, _, _ = user_id.partition('@')
             for timestamp in user_login_timestamp.findall('loginTimestamp'):
                 login_timestamp = datetime.datetime.strptime(timestamp.text, '%a %b %d %H:%M:%S %Z %Y')
                 yield {'user_id': user_id, 'login_timestamp': login_timestamp}
